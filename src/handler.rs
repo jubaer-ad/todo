@@ -1,8 +1,9 @@
-// use crate::{
-//     model::{AppState, QueryOption, Todo, UpdateTodoSchema},
-//     response::{GenericResponse, SingleTodoResponse, TodoListResponse},
-// };
-use crate::{model::*, response::*};
+use crate::{
+    model::{AppState, QueryOption, Todo, UpdateTodoSchema},
+    response::{GenericResponse, SingleTodoResponse, TodoData, TodoListResponse},
+};
+use std::collections::HashMap;
+// use crate::{model::*, response::*};
 use actix_web::{delete, get, patch, post, web, HttpResponse, Responder};
 use chrono::prelude::*;
 use uuid::Uuid;
@@ -19,7 +20,27 @@ async fn check_server_up_or_not() -> impl Responder {
     HttpResponse::Ok().json(rsp)
 }
 
-#[post(/todos)]
+#[get("/todos")]
+pub async fn todos_list_handler(
+    opts: web::Query<QueryOption>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let todos = data.todo_db.lock().unwrap();
+
+    let limit = opts.limit.unwrap_or(10);
+    let offset = (opts.page.unwrap_or(1) - 1) * limit;
+
+    let todos: Vec<Todo> = todos.clone().into_iter().skip(offset).take(limit).collect();
+
+    let rsp = TodoListResponse {
+        status: "success".to_string(),
+        count: todos.len(),
+        data: todos,
+    };
+    HttpResponse::Ok().json(rsp)
+}
+
+#[post("/todos")]
 async fn create_todo_handler(
     mut body: web::Json<Todo>,
     data: web::Data<AppState>,
@@ -27,12 +48,12 @@ async fn create_todo_handler(
     let mut vec = data.todo_db.lock().unwrap();
     let todo = vec.iter().find(|todo| todo.title == body.title);
     if todo.is_some() {
-        let err_rsp = &GenericResponse {
+        let err_rsp = GenericResponse {
             status: "fail".to_string(),
             message: format!("Todo with title '{}' already exists", body.title),
         };
 
-        HttpResponse::Conflict().json(err_rsp)
+        return HttpResponse::Conflict().json(err_rsp);
     }
 
     let uuid_id = Uuid::new_v4();
@@ -48,7 +69,15 @@ async fn create_todo_handler(
 
     let rsp = &SingleTodoResponse {
         status: "success".to_string(),
-        data: TodoData { todo },
+        data: todo,
     };
-    HttpResponse::Ok().json(rs)
+    HttpResponse::Ok().json(rsp)
+}
+
+pub fn config(conf: &mut web::ServiceConfig) {
+    let scope = web::scope("/api")
+        .service(check_server_up_or_not)
+        .service(todos_list_handler)
+        .service(create_todo_handler);
+    conf.service(scope);
 }

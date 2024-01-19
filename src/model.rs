@@ -7,7 +7,7 @@ pub struct Todo {
     pub id: Option<String>,
     pub title: String,
     pub content: String,
-    pub complete: Option<bool>,
+    pub completed: Option<bool>,
     pub createdAt: Option<DateTime<Utc>>,
     pub updatedAt: Option<DateTime<Utc>>,
 }
