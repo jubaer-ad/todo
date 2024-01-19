@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 actix-cors = "0.7.0"
 actix-web = "4.4.1"
+anymap = "0.12.1"
 chrono = { version = "0.4.31", features = ["serde"] }
 env_logger = "0.10.2"
 serde = { version = "1.0.195", features = ["derive"] }
